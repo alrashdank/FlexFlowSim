@@ -1,0 +1,119 @@
+{
+  "_metadata": {
+    "name": "Electronics Assembly \u00e2\u20ac\u201d 3-Stage Synthetic Benchmark",
+    "source": "Synthetic configuration for framework generalisability testing",
+    "notes": [
+      "3 stages: PCB Mounting, Soldering, Quality Testing",
+      "Server counts: 2, 3, 2 \u00e2\u2020\u2019 12 routing actions",
+      "Designed to test larger action space and 3-stage topology",
+      "Service times and costs chosen to create meaningful heterogeneity"
+    ]
+  },
+  "stages": [
+    {
+      "name": "PCB Mounting",
+      "servers": [
+        {
+          "name": "Mounter A (high-speed)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 8.0,
+            "std": 2.5,
+            "min": 1.0
+          },
+          "processing_cost": 2.0,
+          "idle_cost": 0.3
+        },
+        {
+          "name": "Mounter B (standard)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 12.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 1.0,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Soldering",
+      "servers": [
+        {
+          "name": "Reflow Oven 1 (fast/expensive)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 15.0,
+            "std": 4.0,
+            "min": 2.0
+          },
+          "processing_cost": 2.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Reflow Oven 2 (medium)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 20.0,
+            "std": 5.0,
+            "min": 2.0
+          },
+          "processing_cost": 1.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Wave Solder (slow/cheap)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 28.0,
+            "std": 6.0,
+            "min": 3.0
+          },
+          "processing_cost": 0.8,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Quality Testing",
+      "servers": [
+        {
+          "name": "AOI Scanner (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 5.0,
+            "std": 1.5,
+            "min": 1.0
+          },
+          "processing_cost": 1.8,
+          "idle_cost": 0.2
+        },
+        {
+          "name": "Manual Inspector (slow/cheap)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 10.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 0.6,
+          "idle_cost": 0.1
+        }
+      ]
+    }
+  ],
+  "arrival": {
+    "distribution": "exponential",
+    "mean": 6.0
+  },
+  "waiting_cost": 0.15,
+  "max_time": 480.0,
+  "dt": 1.0,
+  "max_queue": 50.0,
+  "norm_constants": [
+    4230.0,
+    55.0,
+    4980.0
+  ]
+}
