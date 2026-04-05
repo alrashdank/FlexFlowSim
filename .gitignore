@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Trained models
+models/
+*.zip
+
+# Training logs (keep configs, exclude large logs)
+training_log*.json
+
+# Evaluation outputs
+*.xlsx
+*.csv
+
+# Figures
+*.png
+!configs/*.png
