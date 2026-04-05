@@ -130,19 +130,6 @@ Four predefined scenarios are included:
 
 Custom weight scenarios can be defined through the dashboard or passed programmatically.
 
-## Citation
-
-If you use FlexFlowSim in your research, please cite:
-
-```bibtex
-@article{flexflowsim2025,
-  title={FlexFlowSim: An Open-Source Configurable Benchmark for Multi-Objective Reinforcement Learning in Flow Shop Routing},
-  author={[Alrashdan, Khaled]},
-  journal={Journal of Industrial and Production Engineering},
-  year={2026},
-  note={Under review}
-}
-```
 
 ## Acknowledgements
 
