@@ -137,9 +137,9 @@ If you use FlexFlowSim in your research, please cite:
 ```bibtex
 @article{flexflowsim2025,
   title={FlexFlowSim: An Open-Source Configurable Benchmark for Multi-Objective Reinforcement Learning in Flow Shop Routing},
-  author={[Authors]},
+  author={[Alrashdan, Khaled]},
   journal={Journal of Industrial and Production Engineering},
-  year={2025},
+  year={2026},
   note={Under review}
 }
 ```
