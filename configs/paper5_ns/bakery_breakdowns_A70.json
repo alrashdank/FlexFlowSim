@@ -10,7 +10,9 @@
       "Cost ratio 1.5:1 from Therkelsen et al. (2014) oven energy differentials",
       "Kneading speed heterogeneity NOT significant (Mann-Whitney p=0.247)",
       "Baking Oven B excluded; available for 3-server extension"
-    ]
+    ],
+    "variant": "breakdowns_A0.70",
+    "availability_target": 0.7
   },
   "stages": [
     {
@@ -80,5 +82,19 @@
     2740.0,
     20.0,
     3220.0
-  ]
+  ],
+  "breakdowns": {
+    "enabled": true,
+    "default": {
+      "ttf": {
+        "distribution": "exponential",
+        "mean": 46.666666666666664
+      },
+      "ttr": {
+        "distribution": "lognormal",
+        "mean": 20.0,
+        "std": 6.666666666666667
+      }
+    }
+  }
 }

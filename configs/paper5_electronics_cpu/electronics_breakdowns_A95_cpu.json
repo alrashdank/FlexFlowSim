@@ -6,7 +6,11 @@
       "3 stages: PCB Mounting (2), Soldering (3), Quality Testing (2)",
       "12 routing actions (2x3x2)",
       "Cost-speed trade-offs differ across stages"
-    ]
+    ],
+    "variant": "breakdowns_A0.95",
+    "availability_target": 0.95,
+    "protocol": "cpu_aligned",
+    "paper5_phase": "12 (corrected PPO grid)"
   },
   "stages": [
     {
@@ -111,8 +115,27 @@
   "dt": 1.0,
   "max_queue": 50.0,
   "norm_constants": [
-    4230.0,
-    55.0,
-    5100.0
-  ]
+    5500.0,
+    50.0,
+    6500.0
+  ],
+  "breakdowns": {
+    "enabled": true,
+    "default": {
+      "ttf": {
+        "distribution": "exponential",
+        "mean": 380.0
+      },
+      "ttr": {
+        "distribution": "lognormal",
+        "mean": 20.0,
+        "std": 6.666666666666667
+      }
+    }
+  },
+  "ns_features": {
+    "enabled": true,
+    "ema_window": 30
+  },
+  "cpu_aligned_reward": true
 }

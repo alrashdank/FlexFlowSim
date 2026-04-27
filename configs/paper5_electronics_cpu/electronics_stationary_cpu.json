@@ -6,7 +6,9 @@
       "3 stages: PCB Mounting (2), Soldering (3), Quality Testing (2)",
       "12 routing actions (2x3x2)",
       "Cost-speed trade-offs differ across stages"
-    ]
+    ],
+    "protocol": "cpu_aligned",
+    "paper5_phase": "12 (corrected PPO grid)"
   },
   "stages": [
     {
@@ -114,5 +116,10 @@
     4230.0,
     55.0,
     5100.0
-  ]
+  ],
+  "ns_features": {
+    "enabled": true,
+    "ema_window": 30
+  },
+  "cpu_aligned_reward": true
 }
