@@ -28,10 +28,10 @@ models/
 *.zip
 
 # Training logs (keep configs, exclude large logs)
-
+training_log*.json
 
 # Evaluation outputs
-
+*.xlsx
 *.csv
 
 # Figures
