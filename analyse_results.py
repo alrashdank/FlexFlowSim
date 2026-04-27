@@ -7,8 +7,8 @@
       "12 routing actions (2x3x2)",
       "Cost-speed trade-offs differ across stages"
     ],
-    "variant": "breakdowns_A0.95",
-    "availability_target": 0.95
+    "variant": "breakdowns_A0.70",
+    "availability_target": 0.7
   },
   "stages": [
     {
@@ -122,7 +122,7 @@
     "default": {
       "ttf": {
         "distribution": "exponential",
-        "mean": 380.0
+        "mean": 46.666666666666664
       },
       "ttr": {
         "distribution": "lognormal",
