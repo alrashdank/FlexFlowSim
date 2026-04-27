@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "name": "Electronics Assembly \u2014 3-stage synthetic benchmark",
+    "source": "Paper 3, Table 5",
+    "notes": [
+      "3 stages: PCB Mounting (2), Soldering (3), Quality Testing (2)",
+      "12 routing actions (2x3x2)",
+      "Cost-speed trade-offs differ across stages"
+    ],
+    "variant": "breakdowns_A0.99",
+    "availability_target": 0.99,
+    "protocol": "cpu_aligned",
+    "paper5_phase": "12 (corrected PPO grid)"
+  },
+  "stages": [
+    {
+      "name": "PCB Mounting",
+      "servers": [
+        {
+          "name": "Mounter A (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 8.0,
+            "std": 2.5,
+            "min": 1.0
+          },
+          "processing_cost": 2.0,
+          "idle_cost": 0.3
+        },
+        {
+          "name": "Mounter B (std)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 12.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 1.0,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Soldering",
+      "servers": [
+        {
+          "name": "Reflow 1 (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 15.0,
+            "std": 4.0,
+            "min": 1.0
+          },
+          "processing_cost": 2.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Reflow 2 (med)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 20.0,
+            "std": 5.0,
+            "min": 1.0
+          },
+          "processing_cost": 1.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Wave (slow)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 28.0,
+            "std": 6.0,
+            "min": 1.0
+          },
+          "processing_cost": 0.8,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Quality Testing",
+      "servers": [
+        {
+          "name": "AOI Scanner (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 5.0,
+            "std": 1.5,
+            "min": 0.5
+          },
+          "processing_cost": 1.8,
+          "idle_cost": 0.2
+        },
+        {
+          "name": "Manual Insp (slow)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 10.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 0.6,
+          "idle_cost": 0.1
+        }
+      ]
+    }
+  ],
+  "arrival": {
+    "distribution": "exponential",
+    "mean": 6.0
+  },
+  "waiting_cost": 0.15,
+  "max_time": 480.0,
+  "dt": 1.0,
+  "max_queue": 50.0,
+  "norm_constants": [
+    5500.0,
+    50.0,
+    6500.0
+  ],
+  "breakdowns": {
+    "enabled": true,
+    "default": {
+      "ttf": {
+        "distribution": "exponential",
+        "mean": 1980.0
+      },
+      "ttr": {
+        "distribution": "lognormal",
+        "mean": 20.0,
+        "std": 6.666666666666667
+      }
+    }
+  },
+  "ns_features": {
+    "enabled": true,
+    "ema_window": 30
+  },
+  "cpu_aligned_reward": true
+}
