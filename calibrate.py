@@ -1,91 +1,42 @@
-"""
-FlexFlowSim — Normalisation Constant Calibration
-==================================================
-
-Runs random-policy episodes with norm_constants=[1,1,1] to measure raw
-reward component magnitudes. Use the output to set norm_constants in
-your JSON config before training.
-
-Usage:
-    python calibrate.py --config configs/bakery_bk50.json
-    python calibrate.py --config configs/bakery_bk50.json --episodes 10
-"""
-
-import argparse
-import json
-import numpy as np
-from env import FlexFlowSimEnv, load_config
-
-
-def calibrate(config_path, num_episodes=5, seed=42):
-    """Run random-policy episodes to measure raw reward scales."""
-    # Load config and override norm_constants
-    cfg = load_config(config_path)
-    cfg["norm_constants"] = [1.0, 1.0, 1.0]
-
-    env = FlexFlowSimEnv(config=cfg, weights=(0.33, 0.33, 0.34), seed=seed)
-    rng = np.random.default_rng(seed)
-    seeds = rng.integers(0, 2**31, size=num_episodes)
-
-    costs, deps, lead_times = [], [], []
-
-    print("=" * 65)
-    print("  FlexFlowSim Calibration — Measuring Reward Component Scales")
-    print("=" * 65)
-    print(env.describe())
-    print(f"\nRunning {num_episodes} random-policy episodes...\n")
-
-    for i in range(num_episodes):
-        obs, info = env.reset(seed=int(seeds[i]))
-        while True:
-            action = env.action_space.sample()
-            obs, reward, terminated, truncated, info = env.step(action)
-            if terminated or truncated:
-                break
-
-        costs.append(info["total_cost"])
-        deps.append(info["total_departed"])
-        lead_times.append(info["avg_lead_time"])
-        print(f"  Episode {i+1}/{num_episodes} (seed={seeds[i]}): "
-              f"Cost={info['total_cost']:.0f}, Dep={info['total_departed']}, "
-              f"AvgLT={info['avg_lead_time']:.1f}")
-
-    mean_cost = np.mean(costs)
-    mean_dep = np.mean(deps)
-    mean_lt = np.mean(lead_times)
-
-    # NormConstants: round to clean values
-    ref_cost = max(round(mean_cost, -1), 1.0)
-    ref_tp = max(round(mean_dep, 0), 1.0)
-    est_wip_integral = mean_dep * mean_lt
-    ref_wip = max(round(est_wip_integral, -1), 1.0)
-
-    print(f"\n{'=' * 65}")
-    print(f"  RESULTS (averaged over {num_episodes} episodes)")
-    print(f"{'=' * 65}")
-    print(f"  Mean Total Cost:      {mean_cost:.1f}")
-    print(f"  Mean Total Departed:  {mean_dep:.1f}")
-    print(f"  Mean Avg Lead Time:   {mean_lt:.1f}")
-    print(f"  Est. WIP Integral:    {est_wip_integral:.1f}")
-
-    print(f"\n  RECOMMENDED norm_constants: [{ref_cost:.0f}, {ref_tp:.0f}, {ref_wip:.0f}]")
-    print(f"\n  Verification (each should be ~1.0):")
-    print(f"    |cumCost / Ref_Cost|   = {mean_cost / ref_cost:.3f}")
-    print(f"    |cumDep / Ref_Tp|      = {mean_dep / ref_tp:.3f}")
-    print(f"    |cumWIP_dt / Ref_WIP|  = {est_wip_integral / ref_wip:.3f}")
-
-    # Optionally update the config file
-    print(f"\n  To update your config:")
-    print(f'    "norm_constants": [{ref_cost:.0f}, {ref_tp:.0f}, {ref_wip:.0f}]')
-    print(f"{'=' * 65}")
-
-    return ref_cost, ref_tp, ref_wip
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Calibrate FlexFlowSim norm constants")
-    parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--episodes", type=int, default=5)
-    parser.add_argument("--seed", type=int, default=42)
-    args = parser.parse_args()
-    calibrate(args.config, args.episodes, args.seed)
+{
+  "bakery_seed0": "21d6e7abcdf123dcbd68c1ca99f9b1e7363a30f92e73a4336511c9f9349d1f5a",
+  "bakery_seed1": "f5f3441313081ba477fabd02c88893eb992e77416ff1f5b8cb903030b0f16434",
+  "bakery_seed2": "2aee54683f363899194e0d0329fbdf6974c99a4438ed285f393bb6a2db4c451a",
+  "bakery_seed3": "795253d71b8672542ec9bef5e1a98e01123a4c742034a4492098176dcd90e38e",
+  "bakery_seed4": "75ec27f0dc71163f9ea22331dd20ad3709fd165a9da6ef25fc85d64d64f5d005",
+  "bakery_seed5": "d62958848d5c7a76fa4f7b376f74f5e43835fa0e169d4639efbdac2c1656a24c",
+  "bakery_seed6": "86b66b827fc51a1f2538df4977231c6cca279462009a8c9aedda2957ec93b723",
+  "bakery_seed7": "e67e6deb60758e4b0bd2b784fe49ad5bd5ac83f9ec17391051da606e11d74f0a",
+  "bakery_seed8": "699353a1b96355039bd4542e7c9f6886e50bba9cce781de6640e5c2e702318f7",
+  "bakery_seed9": "f75ab9ab6db06e9bb18fb931e2a6edf4380e2792df0cfb35f68e8b80a2e8444f",
+  "bakery_seed10": "5998e6245d7d118c7fff2ba6d8e2b6c963846c9948ee7f2894186b73d8bab363",
+  "bakery_seed11": "3e68ae19631f9fd4dbb3ada69a6d670ea58492a984506f0cabc5ae0f42fada76",
+  "bakery_seed12": "7cdacf718d4182cbd350e8d68609594b41bf7614a4fa959eed3678d0db4ef687",
+  "bakery_seed13": "c21a9765b31617f441f02982a4f66647190ea19410c14a98b5074087cfd8ded6",
+  "bakery_seed14": "94763b76e696d22d7db254ac481e0a6ddb7e5906d131b864757addae5c95f36c",
+  "bakery_seed15": "7d42123632456471b9940ef5f5102f61d428480114da6508f6578ed09aa88535",
+  "bakery_seed16": "1059b8717dae8c2d8a84dc4d0d64d75ec6317e8c2ca9e2acf1d7e7518b557ff4",
+  "bakery_seed17": "89548131cbab8b77d3c824f5c0f6b70f2d8db22b265f584a012874ceb34badb5",
+  "bakery_seed18": "0cd5ba08c24cbe6b2afd0e0acca50ea888a17f7c1b78e2973d153ee204c90784",
+  "bakery_seed19": "c620ab4b0d4851041004881d82b3c0801559aeabbddd87b26548cdc73ba37d58",
+  "electronics_seed0": "ffa244db76c82b28fa28b526c0ae743102e8b22712790c413ecb6ef695094a9e",
+  "electronics_seed1": "e11521a9172516715bd341dc5a2e9753c95b0f1250979aabf214710319c9628a",
+  "electronics_seed2": "74692db83b6bf4102423c06994e5ffce899a6d328e3b951dc87b11347865b716",
+  "electronics_seed3": "0ea30fd97b917a2368f27cc9e79e444e7b3aa99daadfd0bd7393c8fd12a4c8f6",
+  "electronics_seed4": "760caab0c8222289b63c6e62444d56651e22e7c5fd683e8d74e511a2d3987e0e",
+  "electronics_seed5": "5f96cd6a590b04d20140f627023ea30994c76f5c4b72dc3a1a8b70bdec5b002a",
+  "electronics_seed6": "b195c4137eabb6383b7f460282dcca1f98e543b8f02b28a902dfbb7f95f8ae7d",
+  "electronics_seed7": "3a64ea5faa87f26a4715ce6b1d1c71e4c8edaaa27240122cd2a3ac7ac911d0c5",
+  "electronics_seed8": "140d012d2e77851dcb8db729bc7dafa1f8babe4b2868006698144bd275ab02ce",
+  "electronics_seed9": "caff30c7fc81570ab0747ae81fe40751816df64800e9b4240f6eb84820f6fa06",
+  "electronics_seed10": "0c8a68b08c50f4f6fbc21140337916cd7a39c0b73ffa87c93f1026a042d07544",
+  "electronics_seed11": "68036c8944a749aa66fd3d86c18a4974aefddb677ab2365fbb55514b64e3b691",
+  "electronics_seed12": "3e220e86166086f65b486598bfef2c09d3cdd9d880fba83088ebf54133d1faae",
+  "electronics_seed13": "69565cc0b642740cc896697a78ae6d9926a8d52864538d8b0baa8e11bdd688f3",
+  "electronics_seed14": "af8b7cecf58813955b6c2be48fc942adfcbfc5de10b2eafbece7547c8bde013b",
+  "electronics_seed15": "2d91448feda050ca5ee4f1fdf9d00a3666016d556566e5ed6093f7adbc451e2e",
+  "electronics_seed16": "f0118a09ab54265fee6526d84c13861abb0109be9614f8cb96f085386f558d6c",
+  "electronics_seed17": "c90ef566d465c8581100f17e19a54faaebc1fd129198f4186f0832f856526b76",
+  "electronics_seed18": "64a54a7136071ca05c80eb047750e3ec45527aaa4d6c58136b1c50a12538537f",
+  "electronics_seed19": "d46e48f377521e9e48b8fcdc000067bc4d467fabbc3105ab69429a390359b372"
+}

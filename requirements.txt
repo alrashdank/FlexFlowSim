@@ -1,9 +1,39 @@
-simpy>=4.0
-gymnasium>=0.29
-stable-baselines3>=2.0
-numpy>=1.21
-scipy>=1.7
-pandas>=1.3
-matplotlib>=3.5
-streamlit>=1.30
-plotly>=5.0
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Trained models
+models/
+*.zip
+
+# Training logs (keep configs, exclude large logs)
+training_log*.json
+
+# Evaluation outputs
+*.xlsx
+*.csv
+
+# Figures
+*.png
+!configs/*.png
