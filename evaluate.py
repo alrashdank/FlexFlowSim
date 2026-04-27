@@ -1,172 +1,217 @@
 """
-Regression test: byte-identical reproduction of Paper 3/4 simulator output.
+FlexFlowSim — Evaluation & Statistical Analysis
+==================================================
 
-The non-stationarity extensions added to FlexFlowSim for Paper 5 (machine
-breakdowns, demand surges, processing-cost drift) are implemented as opt-in
-extensions that take a separate code path from the base simulator. Stationary
-configurations — those without breakdowns, surge schedules, or cost-drift
-schedules enabled — must therefore produce traces that are byte-identical to
-the unmodified Paper 3/4 simulator.
+Evaluates trained agents and baselines with multi-seed replication,
+Kruskal-Wallis testing, Dunn's post-hoc, and Cliff's Delta effect sizes.
 
-This test verifies that property against a 20-seed golden reference. The
-golden hashes were computed once from the unpatched (Paper 3/4) env.py at
-the time the breakdown extension was introduced, and are stored in
-``golden_hashes.json``.
-
-Running
--------
-    cd /path/to/FlexFlowSim
-    pytest tests/test_byte_identical.py -v
-
-The test passes if every (testbed, seed) cell produces the same SHA-256 digest
-as the golden reference. A failure indicates that a recent change to ``env.py``
-has altered behaviour for stationary configurations and must be investigated
-before being committed.
-
-Regenerating the golden reference
----------------------------------
-If a change to the simulator is *intentionally* expected to alter stationary
-behaviour (rare — most commonly when fixing a bug in the base simulator),
-re-run::
-
-    python tests/regenerate_golden_hashes.py
-
-and review the diff carefully before committing the new ``golden_hashes.json``.
+Usage:
+    python evaluate.py --config configs/bakery_bk50.json --agents-dir results/
+    python evaluate.py --config configs/bakery_bk50.json --baselines-only --reps 50
 """
-import hashlib
+
+import argparse
 import json
-import sys
-from pathlib import Path
+import os
 
 import numpy as np
-import pytest
+import pandas as pd
+from scipy import stats
 
-# Make the repo root importable so ``from env import FlexFlowSimEnv`` works.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
-from env import FlexFlowSimEnv  # noqa: E402
-
-# ----------------------------------------------------------------------
-# Test parameters — must match the regenerator script
-# ----------------------------------------------------------------------
-CONFIGS = [
-    ("bakery",      REPO_ROOT / "configs" / "bakery_bk50.json"),
-    ("electronics", REPO_ROOT / "configs" / "electronics_3stage.json"),
-]
-SEEDS = list(range(20))
-N_STEPS = 480
-GOLDEN_PATH = Path(__file__).parent / "golden_hashes.json"
+from env import FlexFlowSimEnv, load_config
+from baselines import BASELINE_POLICIES, run_episode
 
 
-def _stable_summary(config_path: Path, seed: int, n_steps: int) -> str:
-    """Run one episode and return a stable text summary suitable for hashing.
+def cliffs_delta(x, y):
+    """Cliff's Delta effect size."""
+    n_x, n_y = len(x), len(y)
+    if n_x == 0 or n_y == 0:
+        return 0.0
+    more = sum(1 for xi in x for yi in y if xi > yi)
+    less = sum(1 for xi in x for yi in y if xi < yi)
+    return (more - less) / (n_x * n_y)
 
-    The summary must not depend on Python or NumPy versions: floats are
-    formatted with %.10g, and array contents are joined with commas.
-    """
-    cfg = json.loads(config_path.read_text())
-    env = FlexFlowSimEnv(cfg, seed=seed)
-    init_obs, _ = env.reset(seed=seed)
 
-    # Action sequence is deterministic given the seed.
-    rng = np.random.default_rng(seed * 7919)
-    actions = rng.integers(0, env.action_space.n, size=n_steps).tolist()
+def cliffs_delta_interpretation(d):
+    d = abs(d)
+    if d < 0.147:
+        return "negligible"
+    elif d < 0.33:
+        return "small"
+    elif d < 0.474:
+        return "medium"
+    else:
+        return "large"
 
-    rewards = []
-    last_obs = init_obs
-    last_info = {}
-    for a in actions:
-        result = env.step(int(a))
-        if len(result) == 5:
-            obs, reward, terminated, truncated, info = result
-            done = terminated or truncated
+
+def evaluate_baselines(config_path, weights, num_reps=50, seed=42):
+    """Run all baselines for num_reps replications."""
+    env = FlexFlowSimEnv(config=config_path, weights=weights, seed=seed)
+    rng = np.random.default_rng(seed)
+    seeds = rng.integers(0, 2**31, size=num_reps)
+
+    all_results = {}
+    for name, PolicyClass in BASELINE_POLICIES.items():
+        policy = PolicyClass(env=env)
+        results = [run_episode(policy, env, int(s)) for s in seeds]
+        all_results[name] = pd.DataFrame(results)
+
+    return all_results
+
+
+def evaluate_agent(config_path, agent_path, algo_name, weights, num_reps=50, seed=42):
+    """Evaluate a trained RL agent."""
+    from stable_baselines3 import DQN, PPO
+    ALGOS = {"DQN": DQN, "PPO": PPO}
+
+    env = FlexFlowSimEnv(config=config_path, weights=weights, seed=seed)
+    model = ALGOS[algo_name].load(agent_path)
+    rng = np.random.default_rng(seed)
+    seeds = rng.integers(0, 2**31, size=num_reps)
+
+    results = []
+    for s in seeds:
+        obs, info = env.reset(seed=int(s))
+        total_reward = 0.0
+        while True:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            if terminated or truncated:
+                break
+        dep = info["total_departed"]
+        row = {
+            "totalCost": info["total_cost"],
+            "totalDeparted": dep,
+            "costPerUnit": info["total_cost"] / max(dep, 1),
+            "avgLeadTime": info["avg_lead_time"],
+            "processingCost": info["processing_cost"],
+            "idleCost": info["idle_cost"],
+            "waitingCost": info["waiting_cost"],
+            "totalReward": total_reward,
+        }
+        for i, u in enumerate(info["utilisation"]):
+            row[f"util_{i}"] = u
+        results.append(row)
+
+    return pd.DataFrame(results)
+
+
+def statistical_comparison(all_results, metric="totalCost"):
+    """Kruskal-Wallis + Dunn's post-hoc with Holm correction."""
+    names = list(all_results.keys())
+    groups = [all_results[n][metric].values for n in names]
+
+    # Normality tests
+    print(f"\n  Normality tests (Shapiro-Wilk) for '{metric}':")
+    for name, g in zip(names, groups):
+        if len(g) >= 3:
+            w, p = stats.shapiro(g)
+            print(f"    {name:20s}: W={w:.4f}, p={p:.4f} "
+                  f"{'✓' if p > 0.05 else '✗'}")
+
+    # Kruskal-Wallis
+    if len(groups) >= 2:
+        h, p_kw = stats.kruskal(*groups)
+        print(f"\n  Kruskal-Wallis: H={h:.2f}, p={p_kw:.6f}")
+
+        if p_kw < 0.05:
+            print(f"\n  Pairwise Cliff's Delta ({metric}):")
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    d = cliffs_delta(groups[i], groups[j])
+                    interp = cliffs_delta_interpretation(d)
+                    print(f"    {names[i]:20s} vs {names[j]:20s}: "
+                          f"d={d:+.3f} ({interp})")
         else:
-            obs, reward, done, info = result
-        rewards.append(float(reward))
-        last_obs = obs
-        last_info = info
-        if done:
-            break
+            print("  No significant difference (p >= 0.05)")
 
-    def _fmt_array(a):
-        return ",".join(f"{float(x):.10g}" for x in a)
-
-    departed = last_info.get("total_departed", last_info.get("totalDeparted", "NA"))
-    total_cost = float(last_info.get("total_cost", last_info.get("totalCost", 0.0)))
-
-    parts = [
-        f"init_obs:{_fmt_array(init_obs)}",
-        f"final_obs:{_fmt_array(last_obs)}",
-        f"n_steps:{len(rewards)}",
-        f"reward_sum:{sum(rewards):.10g}",
-        f"reward_first10:{_fmt_array(rewards[:10])}",
-        f"reward_last10:{_fmt_array(rewards[-10:])}",
-        f"total_departed:{departed}",
-        f"total_cost:{total_cost:.6g}",
-    ]
-    return "|".join(parts)
+    return names, groups
 
 
-def _digest(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def summary_table(all_results):
+    """Print a summary table of mean ± std for key metrics."""
+    metrics = ["totalCost", "totalDeparted", "costPerUnit", "avgLeadTime", "totalReward"]
+    names = list(all_results.keys())
+
+    print(f"\n{'Algorithm':20s}", end="")
+    for m in metrics:
+        label = m[:12]
+        print(f"  {label:>22s}", end="")
+    print()
+    print("-" * (20 + 24 * len(metrics)))
+
+    for name in names:
+        df = all_results[name]
+        print(f"{name:20s}", end="")
+        for m in metrics:
+            mean = df[m].mean()
+            std = df[m].std()
+            print(f"  {mean:10.1f} ± {std:7.1f}", end="")
+        print()
 
 
-# ----------------------------------------------------------------------
-# Tests
-# ----------------------------------------------------------------------
-GOLDEN = json.loads(GOLDEN_PATH.read_text())
+def main():
+    parser = argparse.ArgumentParser(description="FlexFlowSim Evaluation")
+    parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--agents-dir", type=str, default=None,
+                        help="Directory with trained agent .zip files")
+    parser.add_argument("--baselines-only", action="store_true")
+    parser.add_argument("--reps", type=int, default=50)
+    parser.add_argument("--scenario", type=str, default="Balanced")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+
+    SCENARIOS = {
+        "CostFocus": (0.8, 0.1, 0.1),
+        "ThroughputFocus": (0.1, 0.8, 0.1),
+        "LeadTimeFocus": (0.1, 0.1, 0.8),
+        "Balanced": (0.33, 0.33, 0.34),
+    }
+    weights = SCENARIOS.get(args.scenario, (0.33, 0.33, 0.34))
+
+    print("=" * 70)
+    print(f"  FlexFlowSim Evaluation — {args.scenario} (w={weights})")
+    print("=" * 70)
+
+    # Baselines
+    print("\n  Running baselines...")
+    all_results = evaluate_baselines(args.config, weights, args.reps, args.seed)
+    print(f"  {len(all_results)} baselines × {args.reps} reps done")
+
+    # Agents
+    if args.agents_dir and not args.baselines_only:
+        for fname in sorted(os.listdir(args.agents_dir)):
+            if fname.endswith("_best.zip") and args.scenario in fname:
+                algo = fname.split("_")[0]
+                seed_str = fname.split("seed")[1].split("_")[0]
+                label = f"{algo}_seed{seed_str}"
+                path = os.path.join(args.agents_dir, fname)
+                print(f"  Evaluating {label}...")
+                df = evaluate_agent(args.config, path, algo, weights, args.reps, args.seed)
+                all_results[label] = df
+
+    # Summary
+    summary_table(all_results)
+
+    # Statistical tests
+    for metric in ["totalCost", "totalDeparted", "avgLeadTime"]:
+        print(f"\n{'=' * 70}")
+        print(f"  Statistical Analysis: {metric}")
+        print(f"{'=' * 70}")
+        statistical_comparison(all_results, metric)
+
+    # Save
+    output_path = f"eval_{args.scenario}.csv"
+    rows = []
+    for name, df in all_results.items():
+        for _, row in df.iterrows():
+            row_dict = row.to_dict()
+            row_dict["algorithm"] = name
+            rows.append(row_dict)
+    pd.DataFrame(rows).to_csv(output_path, index=False)
+    print(f"\n  Results saved to {output_path}")
 
 
-@pytest.mark.parametrize(
-    "testbed,config_path,seed",
-    [(tb, cfg, s) for tb, cfg in CONFIGS for s in SEEDS],
-    ids=[f"{tb}_seed{s}" for tb, _ in CONFIGS for s in SEEDS],
-)
-def test_stationary_byte_identical(testbed, config_path, seed):
-    """Stationary trace for ``(testbed, seed)`` must match the golden hash."""
-    key = f"{testbed}_seed{seed}"
-    expected = GOLDEN.get(key)
-    assert expected is not None, f"No golden hash recorded for {key}"
-    summary = _stable_summary(config_path, seed, N_STEPS)
-    actual = _digest(summary)
-    assert actual == expected, (
-        f"Trace for {key} has diverged from the Paper 3/4 reference.\n"
-        f"  expected: {expected}\n"
-        f"  actual:   {actual}\n"
-        f"This means a recent change to env.py has altered stationary behaviour.\n"
-        f"If the change is intentional, regenerate the golden reference with:\n"
-        f"    python tests/regenerate_golden_hashes.py"
-    )
-
-
-def test_golden_reference_complete():
-    """Sanity check that the golden file covers every (testbed, seed) cell."""
-    expected_keys = {f"{tb}_seed{s}" for tb, _ in CONFIGS for s in SEEDS}
-    actual_keys = set(GOLDEN.keys())
-    missing = expected_keys - actual_keys
-    extra = actual_keys - expected_keys
-    assert not missing, f"Golden reference missing keys: {sorted(missing)}"
-    assert not extra, f"Golden reference has stray keys: {sorted(extra)}"
-
-
-def test_breakdowns_change_behaviour():
-    """Negative test: enabling breakdowns must change the trace.
-
-    Protects against a regression where the breakdown code path silently
-    no-ops (e.g. a refactor accidentally drops the ``breakdowns`` key from
-    the config). For at least one severity, the breakdown variant must
-    produce a different hash from the stationary baseline.
-    """
-    base_path = REPO_ROOT / "configs" / "electronics_3stage.json"
-    bd_path = REPO_ROOT / "configs" / "paper5_electronics" / "electronics_breakdowns_A70.json"
-    assert base_path.exists() and bd_path.exists(), \
-        "Test requires both stationary and breakdown configs"
-
-    seed = 0
-    base_summary = _stable_summary(base_path, seed, N_STEPS)
-    bd_summary = _stable_summary(bd_path, seed, N_STEPS)
-    assert base_summary != bd_summary, (
-        "Stationary and A=0.70 breakdown traces are identical — "
-        "the breakdown mechanism is not active when it should be."
-    )
+if __name__ == "__main__":
+    main()

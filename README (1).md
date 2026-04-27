@@ -1,50 +1,134 @@
-"""
-Regenerate ``tests/golden_hashes.json`` from the current ``env.py``.
-
-This script is deliberately separate from the test file so the test never
-overwrites its own reference. Run it only when the simulator's stationary
-behaviour has been intentionally changed (very rare — almost always when
-fixing a bug in the base simulator). Always review the diff before committing
-the new ``golden_hashes.json``.
-
-Usage::
-
-    python tests/regenerate_golden_hashes.py
-"""
-import hashlib
-import json
-import sys
-from pathlib import Path
-
-import numpy as np
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
-# Import the same helpers used by the test, to guarantee the digest scheme
-# stays identical.
-from tests.test_byte_identical import (  # noqa: E402
-    CONFIGS,
-    SEEDS,
-    N_STEPS,
-    _stable_summary,
-    _digest,
-    GOLDEN_PATH,
-)
-
-
-def main():
-    new_golden = {}
-    for testbed, cfg_path in CONFIGS:
-        for seed in SEEDS:
-            key = f"{testbed}_seed{seed}"
-            summary = _stable_summary(cfg_path, seed, N_STEPS)
-            new_golden[key] = _digest(summary)
-            print(f"  {key}: {new_golden[key][:24]}...")
-
-    GOLDEN_PATH.write_text(json.dumps(new_golden, indent=2) + "\n")
-    print(f"\nWrote {len(new_golden)} golden hashes to {GOLDEN_PATH}")
-
-
-if __name__ == "__main__":
-    main()
+{
+  "_metadata": {
+    "name": "Electronics Assembly \u2014 3-stage synthetic benchmark",
+    "source": "Paper 3, Table 5",
+    "notes": [
+      "3 stages: PCB Mounting (2), Soldering (3), Quality Testing (2)",
+      "12 routing actions (2x3x2)",
+      "Cost-speed trade-offs differ across stages"
+    ],
+    "variant": "breakdowns_A0.95",
+    "availability_target": 0.95
+  },
+  "stages": [
+    {
+      "name": "PCB Mounting",
+      "servers": [
+        {
+          "name": "Mounter A (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 8.0,
+            "std": 2.5,
+            "min": 1.0
+          },
+          "processing_cost": 2.0,
+          "idle_cost": 0.3
+        },
+        {
+          "name": "Mounter B (std)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 12.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 1.0,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Soldering",
+      "servers": [
+        {
+          "name": "Reflow 1 (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 15.0,
+            "std": 4.0,
+            "min": 1.0
+          },
+          "processing_cost": 2.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Reflow 2 (med)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 20.0,
+            "std": 5.0,
+            "min": 1.0
+          },
+          "processing_cost": 1.5,
+          "idle_cost": 0.5
+        },
+        {
+          "name": "Wave (slow)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 28.0,
+            "std": 6.0,
+            "min": 1.0
+          },
+          "processing_cost": 0.8,
+          "idle_cost": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Quality Testing",
+      "servers": [
+        {
+          "name": "AOI Scanner (fast)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 5.0,
+            "std": 1.5,
+            "min": 0.5
+          },
+          "processing_cost": 1.8,
+          "idle_cost": 0.2
+        },
+        {
+          "name": "Manual Insp (slow)",
+          "service_time": {
+            "distribution": "normal",
+            "mean": 10.0,
+            "std": 3.0,
+            "min": 1.0
+          },
+          "processing_cost": 0.6,
+          "idle_cost": 0.1
+        }
+      ]
+    }
+  ],
+  "arrival": {
+    "distribution": "exponential",
+    "mean": 6.0
+  },
+  "waiting_cost": 0.15,
+  "max_time": 480.0,
+  "dt": 1.0,
+  "max_queue": 50.0,
+  "norm_constants": [
+    5500.0,
+    50.0,
+    6500.0
+  ],
+  "breakdowns": {
+    "enabled": true,
+    "default": {
+      "ttf": {
+        "distribution": "exponential",
+        "mean": 380.0
+      },
+      "ttr": {
+        "distribution": "lognormal",
+        "mean": 20.0,
+        "std": 6.666666666666667
+      }
+    }
+  }
+}
