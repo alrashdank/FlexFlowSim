@@ -138,3 +138,20 @@ The bakery case study uses the BK50 dataset from Babor and Hitzmann (2022), avai
 ## Licence
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+
+## Paper 4 experiment package (Metric Reversal study, v7)
+
+The paper4_experiments/ directory contains the evaluation layer for "Metric Reversal in Manufacturing Routing: How Fixed-Horizon Accounting Creates an Apparent PPO Advantage" (v7). The study uses the two environments committed in configs/: Bakery (bakery_bk50.json, real-data calibrated) and Electronics (electronics_3stage.json). An earlier 5-Stage Hard stress configuration was removed from the study as unreproducible: its configuration file was never committed to this repository and could not be reconstructed from records.
+
+Scripts (run from the repository root, python3 <script>):
+
+drain_experiment.py - fixed-horizon vs drain-to-empty accounting protocol (DrainEnv, paired evaluation seeds 9999+i).
+redrain3.py - final drain protocol: dedicated arrival RNG so arrival streams are policy-invariant by construction; produced the Bakery canon drain_results.json.
+env_drain.py - the same protocol on a further environment; produced drain_electronics.json (Electronics replication, Section 4.2).
+gamma_experiment.py - discount-factor robustness at gamma = 0.99 and 0.999; produced gamma_results_g099.json / gamma_results_g0999.json (Section 4.9).
+optuna_canonical.py - Optuna-selected hyperparameters retrained and evaluated under the canonical seeds under both accountings; produced optuna_canonical.json (Table 5 row and note).
+
+Policy binaries: model_g099_s*.zip, model_g0999_s*.zip, model_electronics_s*.zip, model_optuna_s*.zip (five training seeds each: 42, 123, 256, 512, 1024). The gamma = 0.95 Bakery baseline policies evaluated in drain_results.json can be regenerated with drain_experiment.py A (identical seeds and protocol).
+
+Manuscript numbers are injected at build time from these JSONs; no manuscript number exists without a source file in this directory.
